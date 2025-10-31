@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { AppBar } from '@/components/AppBar';
 
 export default function Landing() {
@@ -16,20 +15,45 @@ export default function Landing() {
           background: 'var(--gradient-hero)',
         }}
       >
-        <div className="container mx-auto text-center">
+        <div className="container mx-auto text-center max-w-3xl">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
             Plan Your Perfect Trip
           </h1>
-          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-white/90 mb-12 max-w-2xl mx-auto">
             Let AI create personalized itineraries based on your preferences, budget, and travel style
           </p>
-          <Button
-            size="lg"
-            className="bg-accent hover:bg-accent/90 text-accent-foreground text-lg px-8 py-6 h-auto"
-            onClick={() => navigate('/onboarding')}
-          >
-            Plan a Trip
-          </Button>
+          
+          {/* AI Chat Interface */}
+          <div className="bg-white rounded-2xl shadow-2xl p-6 text-left">
+            <div className="mb-4">
+              <div className="flex items-start gap-3 mb-6">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-cyan-500 flex items-center justify-center text-white text-xl flex-shrink-0">
+                  🤖
+                </div>
+                <div className="bg-muted rounded-2xl px-4 py-3 max-w-md">
+                  <p className="text-foreground">
+                    Hi! I'm your AI travel planner — tell me about your trip.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <input
+              type="text"
+              placeholder="I want to plan a 5-day family trip to Thailand"
+              className="w-full px-4 py-4 border-2 border-border rounded-xl focus:outline-none focus:border-primary transition-colors text-base"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                  const message = e.currentTarget.value.trim();
+                  navigate('/planner/new', { state: { initialMessage: message } });
+                }
+              }}
+              autoFocus
+            />
+            <p className="text-sm text-muted-foreground mt-3 text-center">
+              Press Enter to start planning
+            </p>
+          </div>
         </div>
       </section>
 
