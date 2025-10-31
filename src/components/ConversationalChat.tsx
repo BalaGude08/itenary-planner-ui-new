@@ -67,6 +67,9 @@ export const ConversationalChat = ({ initialMessage, onComplete }: Conversationa
     } else if (currentStep === 'destination') {
       updateOnboarding({ destinationCity: userInput });
       simulateAIResponse('Great choice! When would you like to travel?', 'dates');
+    } else if (currentStep === 'complete') {
+      // Handle follow-up questions after itinerary is generated
+      simulateAIResponse('I can help you modify your itinerary! You can ask me to change activities, adjust timing, swap hotels, or add new experiences. What would you like to adjust?', 'complete');
     }
   };
 
@@ -277,7 +280,7 @@ export const ConversationalChat = ({ initialMessage, onComplete }: Conversationa
         <div ref={chatEndRef} />
       </div>
       
-      {currentStep !== 'generating' && currentStep !== 'complete' && (
+      {currentStep !== 'generating' && (
         <div className="p-4 border-t bg-card space-y-2">
           <div className="flex gap-2">
             <input
@@ -290,7 +293,7 @@ export const ConversationalChat = ({ initialMessage, onComplete }: Conversationa
                   handleSend();
                 }
               }}
-              placeholder="Type your message..."
+              placeholder={currentStep === 'complete' ? "Ask me to modify your itinerary..." : "Type your message..."}
               className="flex-1 px-4 py-3 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-ring bg-background"
             />
             <Button onClick={handleSend} className="px-6">
