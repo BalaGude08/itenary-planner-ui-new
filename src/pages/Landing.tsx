@@ -40,7 +40,7 @@ export default function Landing() {
             
             <input
               type="text"
-              placeholder="e.g., Bangalore, Mumbai, Delhi..."
+              placeholder="e.g., Bangalore, Mumbai, Singapore, Bangkok..."
               className="w-full px-4 py-4 border-2 border-border rounded-xl focus:outline-none focus:border-primary transition-colors text-base"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.currentTarget.value.trim()) {
