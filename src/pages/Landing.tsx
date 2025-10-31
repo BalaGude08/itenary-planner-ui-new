@@ -32,7 +32,7 @@ export default function Landing() {
                 </div>
                 <div className="bg-muted rounded-2xl px-4 py-3 max-w-md">
                   <p className="text-foreground">
-                    Hi! I'm your AI travel planner — tell me about your trip.
+                    👋 Hi, I'm your AI travel planner. Where are you planning to travel from?
                   </p>
                 </div>
               </div>
@@ -40,7 +40,7 @@ export default function Landing() {
             
             <input
               type="text"
-              placeholder="I want to plan a 5-day family trip to Thailand"
+              placeholder="e.g., Bangalore, Mumbai, Delhi..."
               className="w-full px-4 py-4 border-2 border-border rounded-xl focus:outline-none focus:border-primary transition-colors text-base"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.currentTarget.value.trim()) {

@@ -7,29 +7,37 @@ import { TripProgress } from '@/components/TripProgress';
 import { WeatherStrip } from '@/components/WeatherStrip';
 import { CostBreakdown } from '@/components/CostBreakdown';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default function Planner() {
   const { itineraryId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { setItinerary, currentItinerary } = useItineraryStore();
+  const { setItinerary, currentItinerary, onboardingData } = useItineraryStore();
   const [currentDay, setCurrentDay] = useState(1);
   const [showItinerary, setShowItinerary] = useState(false);
+  const [openSections, setOpenSections] = useState({
+    flights: true,
+    hotels: true,
+    dayWise: true,
+    cost: true,
+  });
   
   const initialMessage = location.state?.initialMessage;
 
   const handleConversationComplete = () => {
     setShowItinerary(true);
     
-    // Mock itinerary data
+    // Mock itinerary data based on conversation
+    const destination = onboardingData.destinationCity || 'Mumbai';
     const mockItinerary: Itinerary = {
       id: itineraryId || 'demo',
-      title: 'Amazing Mumbai Adventure',
+      title: `Amazing ${destination} Adventure`,
       currency: '₹',
       totalCost: 45000,
       days: [
         {
-          date: '2025-11-01',
+          date: onboardingData.dates?.start || '2025-11-01',
           weather: { temp: 28, condition: 'Sunny' },
           activities: [
             {
@@ -87,6 +95,10 @@ export default function Planner() {
     setItinerary(mockItinerary);
   };
 
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
   const weatherDays = currentItinerary?.days.map((d) => ({
     date: d.date,
     temp: d.weather?.temp || 25,
@@ -132,76 +144,203 @@ export default function Planner() {
               <div className="mb-6">
                 <h1 className="text-3xl font-bold mb-2">{currentItinerary.title}</h1>
                 <p className="text-muted-foreground">
+                  {onboardingData.departureCity && onboardingData.destinationCity && 
+                    `${onboardingData.departureCity} → ${onboardingData.destinationCity} • `}
                   {currentItinerary.days.length} days • {currentItinerary.currency}{currentItinerary.totalCost}
                 </p>
               </div>
 
-              {/* Trip Progress */}
-              <div className="mb-6">
-                <h3 className="font-semibold mb-3">Trip Overview</h3>
-                <TripProgress
-                  currentStep={currentDay}
-                  totalSteps={currentItinerary.days.length}
-                />
-              </div>
-
-              {/* Weather Strip */}
-              <div className="mb-6">
-                <h3 className="font-semibold mb-3">Weather Forecast</h3>
-                <WeatherStrip days={weatherDays} />
-              </div>
-
-              {/* Cost Breakdown */}
-              <div className="mb-6">
-                <CostBreakdown costs={costs} currency={currentItinerary.currency} />
-              </div>
-
-              {/* Day Selector */}
-              <div className="mb-6">
-                <h3 className="font-semibold mb-3">Daily Itinerary</h3>
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {currentItinerary.days.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentDay(idx + 1)}
-                      className={`px-4 py-2 rounded-lg border-2 flex-shrink-0 transition-all ${
-                        currentDay === idx + 1
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      Day {idx + 1}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Current Day Activities */}
-              <div className="space-y-4 mb-6">
-                {currentItinerary.days[currentDay - 1]?.activities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="bg-card rounded-lg border p-4 shadow-sm"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">
-                          {activity.time}
-                        </div>
-                        <h4 className="font-semibold text-lg">{activity.title}</h4>
+              {/* Flights Section */}
+              {onboardingData.flights?.include && (
+                <Collapsible open={openSections.flights} onOpenChange={() => toggleSection('flights')} className="mb-4">
+                  <div className="bg-card rounded-lg border">
+                    <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">✈️</span>
+                        <h3 className="font-semibold text-lg">Flights</h3>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium">
-                          {activity.cost > 0
-                            ? `${currentItinerary.currency}${activity.cost}`
-                            : 'Free'}
+                      <span className="text-sm text-muted-foreground">
+                        {openSections.flights ? '▼' : '▶'}
+                      </span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="p-4 pt-0 space-y-3">
+                        <div className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-medium">
+                                {onboardingData.departureCity} → {onboardingData.destinationCity}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(onboardingData.dates?.start || '').toLocaleDateString('en-US', { 
+                                  weekday: 'short', month: 'short', day: 'numeric' 
+                                })} • Morning departure
+                              </p>
+                            </div>
+                            <Button variant="outline" size="sm">Modify</Button>
+                          </div>
                         </div>
+                        <div className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-medium">
+                                {onboardingData.destinationCity} → {onboardingData.departureCity}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(onboardingData.dates?.end || '').toLocaleDateString('en-US', { 
+                                  weekday: 'short', month: 'short', day: 'numeric' 
+                                })} • Evening departure
+                              </p>
+                            </div>
+                            <Button variant="outline" size="sm">Modify</Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              )}
+
+              {/* Hotels Section */}
+              {onboardingData.accommodation?.include && (
+                <Collapsible open={openSections.hotels} onOpenChange={() => toggleSection('hotels')} className="mb-4">
+                  <div className="bg-card rounded-lg border">
+                    <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🏨</span>
+                        <h3 className="font-semibold text-lg">Hotels</h3>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {openSections.hotels ? '▼' : '▶'}
+                      </span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="p-4 pt-0">
+                        <div className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-medium">Grand Plaza Hotel</p>
+                              <p className="text-sm text-muted-foreground">
+                                {onboardingData.accommodation.starRating || '4-star hotel'} • City Center
+                              </p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {currentItinerary.days.length} nights
+                              </p>
+                            </div>
+                            <Button variant="outline" size="sm">Change hotel</Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              )}
+
+              {/* Day-wise Plan Section */}
+              <Collapsible open={openSections.dayWise} onOpenChange={() => toggleSection('dayWise')} className="mb-4">
+                <div className="bg-card rounded-lg border">
+                  <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">📅</span>
+                      <h3 className="font-semibold text-lg">Day-wise Plan</h3>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {openSections.dayWise ? '▼' : '▶'}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="p-4 pt-0">
+                      {/* Trip Progress */}
+                      <div className="mb-4">
+                        <TripProgress
+                          currentStep={currentDay}
+                          totalSteps={currentItinerary.days.length}
+                        />
+                      </div>
+
+                      {/* Weather Strip */}
+                      <div className="mb-4">
+                        <WeatherStrip days={weatherDays} />
+                      </div>
+
+                      {/* Day Selector */}
+                      <div className="mb-4">
+                        <div className="flex gap-2 overflow-x-auto pb-2">
+                          {currentItinerary.days.map((_, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setCurrentDay(idx + 1)}
+                              className={`px-4 py-2 rounded-lg border-2 flex-shrink-0 transition-all ${
+                                currentDay === idx + 1
+                                  ? 'border-primary bg-primary/5'
+                                  : 'border-border hover:border-primary/50'
+                              }`}
+                            >
+                              Day {idx + 1}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Current Day Activities */}
+                      <div className="space-y-3">
+                        {currentItinerary.days[currentDay - 1]?.activities.map((activity) => (
+                          <div
+                            key={activity.id}
+                            className="bg-background rounded-lg border p-4"
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1">
+                                <div className="text-sm text-muted-foreground mb-1">
+                                  {activity.time}
+                                </div>
+                                <h4 className="font-semibold text-lg">{activity.title}</h4>
+                                <p className="text-muted-foreground text-sm mt-1">{activity.description}</p>
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                <div className="text-sm font-medium">
+                                  {activity.cost > 0
+                                    ? `${currentItinerary.currency}${activity.cost}`
+                                    : 'Free'}
+                                </div>
+                                <div className="flex gap-2">
+                                  <button className="text-lg hover:scale-110 transition-transform" title="Like">
+                                    👍
+                                  </button>
+                                  <button className="text-lg hover:scale-110 transition-transform" title="Dislike">
+                                    👎
+                                  </button>
+                                </div>
+                                <Button variant="outline" size="sm">Swap activity</Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <p className="text-muted-foreground">{activity.description}</p>
-                  </div>
-                ))}
-              </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+
+              {/* Cost Breakdown Section */}
+              <Collapsible open={openSections.cost} onOpenChange={() => toggleSection('cost')} className="mb-6">
+                <div className="bg-card rounded-lg border">
+                  <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">💰</span>
+                      <h3 className="font-semibold text-lg">Cost Breakdown</h3>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {openSections.cost ? '▼' : '▶'}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="p-4 pt-0">
+                      <CostBreakdown costs={costs} currency={currentItinerary.currency} />
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
 
               {/* View Details & Book Now */}
               <div className="flex gap-4">

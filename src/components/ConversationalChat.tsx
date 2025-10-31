@@ -6,11 +6,16 @@ import { cn } from '@/lib/utils';
 
 type ChatStep = 
   | 'initial'
+  | 'destination'
   | 'dates'
+  | 'travelers'
+  | 'children-ages'
   | 'budget'
   | 'themes'
   | 'constraints'
-  | 'departure'
+  | 'flights'
+  | 'accommodation'
+  | 'confirmation'
   | 'generating'
   | 'complete';
 
@@ -32,10 +37,11 @@ export const ConversationalChat = ({ initialMessage, onComplete }: Conversationa
 
   useEffect(() => {
     if (initialMessage && chatMessages.length === 0) {
+      updateOnboarding({ departureCity: initialMessage });
       addChatMessage('user', initialMessage);
-      simulateAIResponse('Great! Let me help you plan that trip. First, when would you like to travel?', 'dates');
+      simulateAIResponse('Perfect! And where would you like to travel to?', 'destination');
     } else if (chatMessages.length === 0) {
-      addChatMessage('assistant', "Hi! I'm your AI travel planner 🤖 — tell me about your trip.");
+      addChatMessage('assistant', "👋 Hi, I'm your AI travel planner. Where are you planning to travel from?");
     }
   }, []);
 
@@ -56,15 +62,46 @@ export const ConversationalChat = ({ initialMessage, onComplete }: Conversationa
     setInput('');
     
     if (currentStep === 'initial') {
-      simulateAIResponse('Great! Let me help you plan that trip. First, when would you like to travel?', 'dates');
+      updateOnboarding({ departureCity: userInput });
+      simulateAIResponse('Perfect! And where would you like to travel to?', 'destination');
+    } else if (currentStep === 'destination') {
+      updateOnboarding({ destinationCity: userInput });
+      simulateAIResponse('Great choice! When would you like to travel?', 'dates');
     }
   };
 
   const handleDateSelect = (start: Date, end: Date) => {
     updateOnboarding({ dates: { start: start.toISOString(), end: end.toISOString() } });
-    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    addChatMessage('user', `From ${start.toLocaleDateString()} to ${end.toLocaleDateString()} (${daysDiff} days)`);
-    simulateAIResponse("Perfect! What's your budget range for this trip?", 'budget');
+    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    updateOnboarding({ duration: daysDiff });
+    addChatMessage('user', `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+    simulateAIResponse(`You're planning a ${daysDiff}-day trip! Who's traveling with you?`, 'travelers');
+  };
+
+  const handleTravelersSelect = (travelers: { adults: number; children: number; infants: number }) => {
+    updateOnboarding({ travelers });
+    const parts = [];
+    if (travelers.adults > 0) parts.push(`${travelers.adults} Adult${travelers.adults > 1 ? 's' : ''}`);
+    if (travelers.children > 0) parts.push(`${travelers.children} Child${travelers.children > 1 ? 'ren' : ''}`);
+    if (travelers.infants > 0) parts.push(`${travelers.infants} Infant${travelers.infants > 1 ? 's' : ''}`);
+    addChatMessage('user', parts.join(', '));
+    
+    if (travelers.children > 0) {
+      simulateAIResponse(`Great! Could you tell me the ages of the ${travelers.children} child${travelers.children > 1 ? 'ren' : ''}? This helps me suggest better activities.`, 'children-ages');
+    } else {
+      simulateAIResponse("Perfect! What's your budget range for this trip?", 'budget');
+    }
+  };
+
+  const handleChildrenAgesSubmit = (ages: number[]) => {
+    updateOnboarding({ 
+      travelers: { 
+        ...onboardingData.travelers!, 
+        childrenAges: ages 
+      } 
+    });
+    addChatMessage('user', ages.map(age => `${age} years`).join(', '));
+    simulateAIResponse("Got it! What's your budget range for this trip?", 'budget');
   };
 
   const handleBudgetSelect = (budget: 'budget' | 'moderate' | 'luxury') => {
@@ -85,36 +122,103 @@ export const ConversationalChat = ({ initialMessage, onComplete }: Conversationa
     if (constraints.length > 0) {
       addChatMessage('user', constraints.join(', '));
     } else {
-      addChatMessage('user', 'No specific constraints');
+      addChatMessage('user', 'No specific preferences');
     }
-    simulateAIResponse('Last question — which city will you be departing from?', 'departure');
+    simulateAIResponse('Do you want me to include flights in your plan?', 'flights');
   };
 
-  const handleDepartureInput = (city: string) => {
-    updateOnboarding({ departureCity: city });
-    addChatMessage('user', city);
-    setCurrentStep('generating');
-    simulateAIResponse('Perfect! Let me create a personalized itinerary for you...', 'generating');
+  const handleFlightsSelect = (include: boolean, preference?: string) => {
+    updateOnboarding({ flights: { include, preference } });
+    if (include) {
+      addChatMessage('user', preference ? `Yes, ${preference}` : 'Yes, include flights');
+    } else {
+      addChatMessage('user', "No, I'll arrange flights myself");
+    }
+    simulateAIResponse('Would you like me to include hotel suggestions?', 'accommodation');
+  };
+
+  const handleAccommodationSelect = (include: boolean, starRating?: string) => {
+    updateOnboarding({ accommodation: { include, starRating } });
+    if (include) {
+      addChatMessage('user', starRating ? `Yes, ${starRating}` : 'Yes, include hotels');
+    } else {
+      addChatMessage('user', "No, I'll book hotels myself");
+    }
     
-    setTimeout(() => {
-      addChatMessage('assistant', '✨ Your itinerary is ready! Check out the details on the right panel.');
-      setCurrentStep('complete');
-      onComplete?.();
-    }, 2500);
+    // Generate confirmation summary
+    const summary = generateConfirmationSummary();
+    simulateAIResponse(summary, 'confirmation');
+  };
+
+  const generateConfirmationSummary = () => {
+    const { departureCity, destinationCity, duration, travelers, budget, themes } = onboardingData;
+    const parts = [`Okay, you're planning a ${duration}-day`];
+    
+    if (travelers) {
+      const tCount = travelers.adults + travelers.children + travelers.infants;
+      if (tCount > 1 || travelers.children > 0 || travelers.infants > 0) {
+        parts.push('family trip');
+      } else {
+        parts.push('trip');
+      }
+    } else {
+      parts.push('trip');
+    }
+    
+    parts.push(`from ${departureCity} to ${destinationCity}`);
+    
+    if (budget) {
+      const budgetLabels = { budget: 'budget-friendly', moderate: 'moderate', luxury: 'luxury' };
+      parts.push(`with a ${budgetLabels[budget]} budget`);
+    }
+    
+    if (themes && themes.length > 0) {
+      parts.push(`focusing on ${themes.slice(0, 2).join(' and ')}`);
+    }
+    
+    return parts.join(' ') + '. Shall I create your itinerary?';
+  };
+
+  const handleConfirmation = (confirmed: boolean) => {
+    if (confirmed) {
+      addChatMessage('user', '✅ Yes, please');
+      setCurrentStep('generating');
+      simulateAIResponse('✨ Planning your perfect trip...', 'generating');
+      
+      setTimeout(() => {
+        addChatMessage('assistant', '✨ Your itinerary is ready! Check out the details on the right panel.');
+        setCurrentStep('complete');
+        onComplete?.();
+      }, 3000);
+    } else {
+      addChatMessage('user', '✏️ Make changes');
+      simulateAIResponse('No problem! What would you like to change?', 'initial');
+    }
   };
 
   const renderInteractiveElement = () => {
     switch (currentStep) {
       case 'dates':
         return <DateSelector onSelect={handleDateSelect} />;
+      case 'travelers':
+        return <TravelersSelector onSelect={handleTravelersSelect} />;
+      case 'children-ages':
+        return <ChildrenAgesInput 
+          childrenCount={onboardingData.travelers?.children || 0}
+          onSubmit={handleChildrenAgesSubmit} 
+        />;
       case 'budget':
         return <BudgetSelector onSelect={handleBudgetSelect} />;
       case 'themes':
         return <ThemeSelector onSelect={handleThemesSelect} />;
       case 'constraints':
         return <ConstraintSelector onSelect={handleConstraintsSelect} />;
-      case 'departure':
-        return <DepartureInput onSubmit={handleDepartureInput} />;
+      case 'flights':
+        return <FlightsSelector onSelect={handleFlightsSelect} />;
+      case 'accommodation':
+        return <AccommodationSelector onSelect={handleAccommodationSelect} />;
+      case 'confirmation':
+        return <ConfirmationButtons onConfirm={handleConfirmation} />;
       default:
         return null;
     }
@@ -213,9 +317,9 @@ const DateSelector = ({ onSelect }: { onSelect: (start: Date, end: Date) => void
 
   return (
     <div className="flex justify-start mb-4">
-      <div className="bg-card border rounded-2xl p-4 shadow-lg max-w-md">
+      <div className="bg-card border rounded-2xl p-4 shadow-lg">
         <p className="text-sm font-medium mb-3">Select your travel dates:</p>
-        <div className="flex gap-4">
+        <div className="flex gap-4 overflow-x-auto">
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Start Date</label>
             <Calendar
@@ -223,7 +327,7 @@ const DateSelector = ({ onSelect }: { onSelect: (start: Date, end: Date) => void
               selected={startDate}
               onSelect={setStartDate}
               disabled={(date) => date < new Date()}
-              className="rounded-md border"
+              className="rounded-md border pointer-events-auto"
             />
           </div>
           <div>
@@ -233,10 +337,106 @@ const DateSelector = ({ onSelect }: { onSelect: (start: Date, end: Date) => void
               selected={endDate}
               onSelect={setEndDate}
               disabled={(date) => !startDate || date < startDate}
-              className="rounded-md border"
+              className="rounded-md border pointer-events-auto"
             />
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const TravelersSelector = ({ onSelect }: { onSelect: (travelers: { adults: number; children: number; infants: number }) => void }) => {
+  const [adults, setAdults] = useState(1);
+  const [children, setChildren] = useState(0);
+  const [infants, setInfants] = useState(0);
+
+  const Counter = ({ label, emoji, value, onChange }: { label: string; emoji: string; value: number; onChange: (val: number) => void }) => (
+    <div className="flex items-center justify-between py-2">
+      <div className="flex items-center gap-2">
+        <span className="text-xl">{emoji}</span>
+        <span className="text-sm font-medium">{label}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onChange(Math.max(0, value - 1))}
+          disabled={value === 0 || (label.includes('Adult') && value === 1)}
+          className="h-8 w-8 p-0"
+        >
+          -
+        </Button>
+        <span className="w-8 text-center font-medium">{value}</span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onChange(value + 1)}
+          className="h-8 w-8 p-0"
+        >
+          +
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex justify-start mb-4">
+      <div className="bg-card border rounded-2xl p-4 shadow-lg w-80">
+        <p className="text-sm font-medium mb-3">Who's traveling?</p>
+        <div className="space-y-1">
+          <Counter label="Adults (12+)" emoji="👨" value={adults} onChange={setAdults} />
+          <Counter label="Children (2-11)" emoji="👦" value={children} onChange={setChildren} />
+          <Counter label="Infants (0-2)" emoji="👶" value={infants} onChange={setInfants} />
+        </div>
+        <Button 
+          onClick={() => onSelect({ adults, children, infants })} 
+          className="w-full mt-4"
+          size="sm"
+        >
+          Continue
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const ChildrenAgesInput = ({ childrenCount, onSubmit }: { childrenCount: number; onSubmit: (ages: number[]) => void }) => {
+  const [ages, setAges] = useState<number[]>(Array(childrenCount).fill(5));
+
+  const handleAgeChange = (index: number, age: number) => {
+    const newAges = [...ages];
+    newAges[index] = Math.max(2, Math.min(11, age));
+    setAges(newAges);
+  };
+
+  return (
+    <div className="flex justify-start mb-4">
+      <div className="bg-card border rounded-2xl p-4 shadow-lg w-80">
+        <p className="text-sm font-medium mb-3">Enter children's ages:</p>
+        <div className="space-y-2">
+          {ages.map((age, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Child {idx + 1}:</span>
+              <input
+                type="number"
+                value={age}
+                onChange={(e) => handleAgeChange(idx, parseInt(e.target.value) || 2)}
+                min="2"
+                max="11"
+                className="flex-1 px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+              />
+              <span className="text-xs text-muted-foreground">years</span>
+            </div>
+          ))}
+        </div>
+        <Button 
+          onClick={() => onSubmit(ages)} 
+          className="w-full mt-4"
+          size="sm"
+        >
+          Continue
+        </Button>
       </div>
     </div>
   );
@@ -369,33 +569,120 @@ const ConstraintSelector = ({ onSelect }: { onSelect: (constraints: string[]) =>
   );
 };
 
-const DepartureInput = ({ onSubmit }: { onSubmit: (city: string) => void }) => {
-  const [city, setCity] = useState('');
+const FlightsSelector = ({ onSelect }: { onSelect: (include: boolean, preference?: string) => void }) => {
+  const [showPreferences, setShowPreferences] = useState(false);
+
+  const handleYes = () => {
+    setShowPreferences(true);
+  };
+
+  const handlePreference = (pref: string) => {
+    onSelect(true, pref);
+  };
+
+  if (showPreferences) {
+    return (
+      <div className="flex justify-start mb-4">
+        <div className="bg-card border rounded-2xl p-4 shadow-lg">
+          <p className="text-sm font-medium mb-3">Flight preferences:</p>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => handlePreference('Morning flights')} size="sm">
+              🌅 Morning flights
+            </Button>
+            <Button variant="outline" onClick={() => handlePreference('Evening flights')} size="sm">
+              🌆 Evening flights
+            </Button>
+            <Button variant="outline" onClick={() => handlePreference('Direct flights only')} size="sm">
+              ✈️ Direct flights only
+            </Button>
+            <Button variant="outline" onClick={() => handlePreference('Budget airlines')} size="sm">
+              💰 Budget airlines
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex justify-start mb-4">
-      <div className="bg-card border rounded-2xl p-4 shadow-lg max-w-md w-full">
-        <p className="text-sm font-medium mb-3">Where will you be departing from?</p>
+      <div className="bg-card border rounded-2xl p-4 shadow-lg">
+        <p className="text-sm font-medium mb-3">Include flights?</p>
         <div className="flex gap-2">
-          <input
-            type="text"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && city.trim()) {
-                onSubmit(city.trim());
-              }
-            }}
-            placeholder="e.g., Mumbai, New Delhi..."
-            className="flex-1 px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-            autoFocus
-          />
-          <Button 
-            onClick={() => city.trim() && onSubmit(city.trim())}
-            disabled={!city.trim()}
-            size="sm"
-          >
-            Submit
+          <Button variant="default" onClick={handleYes} size="sm">
+            ✈️ Yes, include flights
+          </Button>
+          <Button variant="outline" onClick={() => onSelect(false)} size="sm">
+            No, I'll arrange them
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AccommodationSelector = ({ onSelect }: { onSelect: (include: boolean, starRating?: string) => void }) => {
+  const [showRatings, setShowRatings] = useState(false);
+
+  const handleYes = () => {
+    setShowRatings(true);
+  };
+
+  const handleRating = (rating: string) => {
+    onSelect(true, rating);
+  };
+
+  if (showRatings) {
+    return (
+      <div className="flex justify-start mb-4">
+        <div className="bg-card border rounded-2xl p-4 shadow-lg">
+          <p className="text-sm font-medium mb-3">Hotel preference:</p>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => handleRating('3-star hotels')} size="sm">
+              ⭐⭐⭐ 3-star
+            </Button>
+            <Button variant="outline" onClick={() => handleRating('4-star hotels')} size="sm">
+              ⭐⭐⭐⭐ 4-star
+            </Button>
+            <Button variant="outline" onClick={() => handleRating('5-star hotels')} size="sm">
+              ⭐⭐⭐⭐⭐ 5-star
+            </Button>
+            <Button variant="outline" onClick={() => handleRating('Both Budget & Premium')} size="sm">
+              🏨 Show all
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex justify-start mb-4">
+      <div className="bg-card border rounded-2xl p-4 shadow-lg">
+        <p className="text-sm font-medium mb-3">Include hotel suggestions?</p>
+        <div className="flex gap-2">
+          <Button variant="default" onClick={handleYes} size="sm">
+            🏨 Yes, include hotels
+          </Button>
+          <Button variant="outline" onClick={() => onSelect(false)} size="sm">
+            No, I'll book myself
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ConfirmationButtons = ({ onConfirm }: { onConfirm: (confirmed: boolean) => void }) => {
+  return (
+    <div className="flex justify-start mb-4">
+      <div className="bg-card border rounded-2xl p-4 shadow-lg">
+        <div className="flex gap-2">
+          <Button variant="default" onClick={() => onConfirm(true)} size="sm" className="gap-1">
+            ✅ Yes, please
+          </Button>
+          <Button variant="outline" onClick={() => onConfirm(false)} size="sm" className="gap-1">
+            ✏️ Make changes
           </Button>
         </div>
       </div>

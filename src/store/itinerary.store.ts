@@ -3,12 +3,27 @@ import { create } from 'zustand';
 export type Locale = 'en' | 'hi' | 'te';
 
 export interface OnboardingData {
+  departureCity?: string;
+  destinationCity?: string;
   dates?: { start: string; end: string };
   duration?: number;
+  travelers?: {
+    adults: number;
+    children: number;
+    infants: number;
+    childrenAges?: number[];
+  };
   budget?: 'budget' | 'moderate' | 'luxury';
   themes?: string[];
   constraints?: string[];
-  departureCity?: string;
+  flights?: {
+    include: boolean;
+    preference?: string;
+  };
+  accommodation?: {
+    include: boolean;
+    starRating?: string;
+  };
 }
 
 export interface Itinerary {
