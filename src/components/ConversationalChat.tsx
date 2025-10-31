@@ -308,37 +308,175 @@ export const ConversationalChat = ({ initialMessage, onComplete }: Conversationa
 const DateSelector = ({ onSelect }: { onSelect: (start: Date, end: Date) => void }) => {
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectionPhase, setSelectionPhase] = useState<'start' | 'end'>('start');
 
-  useEffect(() => {
-    if (startDate && endDate) {
+  const maxNights = 30;
+
+  const handleDateClick = (date: Date | undefined) => {
+    if (!date) return;
+    
+    if (selectionPhase === 'start') {
+      setStartDate(date);
+      setEndDate(undefined);
+      setSelectionPhase('end');
+    } else {
+      // Selecting end date
+      if (startDate) {
+        if (date < startDate) {
+          // If end is before start, restart selection
+          setStartDate(date);
+          setEndDate(undefined);
+          setSelectionPhase('end');
+        } else {
+          const nights = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (nights === 0) {
+            // Same day selected, minimum 1 night
+            return;
+          }
+          if (nights > maxNights) {
+            // Exceeded max nights, restart
+            setStartDate(date);
+            setEndDate(undefined);
+            setSelectionPhase('end');
+          } else {
+            setEndDate(date);
+          }
+        }
+      }
+    }
+  };
+
+  const handleClear = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setSelectionPhase('start');
+  };
+
+  const handleApply = () => {
+    if (startDate && endDate && endDate > startDate) {
       onSelect(startDate, endDate);
     }
-  }, [startDate, endDate]);
+  };
+
+  const getDaysBetween = () => {
+    if (startDate && endDate) {
+      const days = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      return days;
+    }
+    return 0;
+  };
+
+  const formatDateRange = () => {
+    if (startDate && endDate) {
+      return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${getDaysBetween()} days)`;
+    }
+    return '';
+  };
+
+  const goToPreviousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
 
   return (
     <div className="flex justify-start mb-4">
-      <div className="bg-card border rounded-2xl p-4 shadow-lg">
-        <p className="text-sm font-medium mb-3">Select your travel dates:</p>
-        <div className="flex gap-4 overflow-x-auto">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Start Date</label>
+      <div className="bg-card border rounded-2xl shadow-lg overflow-hidden max-w-sm">
+        <div className="p-4 pb-3">
+          <p className="text-sm font-medium mb-1">Select your travel dates:</p>
+          <p className="text-xs text-muted-foreground">
+            {selectionPhase === 'start' ? 'Tap to select start date' : 'Tap to select end date'}
+          </p>
+        </div>
+        
+        <div className="px-3 pb-3">
+          {/* Month navigation */}
+          <div className="flex items-center justify-between mb-2 px-2">
+            <button
+              onClick={goToPreviousMonth}
+              className="p-1.5 hover:bg-muted rounded-md transition-colors"
+              aria-label="Previous month"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <div className="text-sm font-semibold">
+              {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </div>
+            <button
+              onClick={goToNextMonth}
+              className="p-1.5 hover:bg-muted rounded-md transition-colors"
+              aria-label="Next month"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          {/* Calendar */}
+          <div className="max-h-80 overflow-auto">
             <Calendar
               mode="single"
+              month={currentMonth}
+              onMonthChange={setCurrentMonth}
               selected={startDate}
-              onSelect={setStartDate}
-              disabled={(date) => date < new Date()}
-              className="rounded-md border pointer-events-auto"
+              onSelect={handleDateClick}
+              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+              className="pointer-events-auto p-0 border-0"
+              modifiers={{
+                start: startDate ? [startDate] : [],
+                end: endDate ? [endDate] : [],
+                range: startDate && endDate ? 
+                  Array.from({ length: getDaysBetween() + 1 }, (_, i) => {
+                    const date = new Date(startDate);
+                    date.setDate(date.getDate() + i);
+                    return date;
+                  }) : []
+              }}
+              modifiersClassNames={{
+                start: 'bg-primary text-primary-foreground rounded-l-full font-semibold',
+                end: 'bg-primary text-primary-foreground rounded-r-full font-semibold',
+                range: 'bg-primary/20 text-foreground'
+              }}
             />
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">End Date</label>
-            <Calendar
-              mode="single"
-              selected={endDate}
-              onSelect={setEndDate}
-              disabled={(date) => !startDate || date < startDate}
-              className="rounded-md border pointer-events-auto"
-            />
+
+          {/* Selected range chip */}
+          {startDate && endDate && (
+            <div className="flex items-center gap-2 text-sm bg-gradient-to-r from-primary/10 to-cyan-500/10 text-foreground px-3 py-2 rounded-full mt-3 border border-primary/20">
+              <span>📅</span>
+              <span className="font-medium">{formatDateRange()}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer actions */}
+        <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-t text-sm">
+          <button
+            onClick={handleClear}
+            className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+          >
+            Clear
+          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleClear}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleApply}
+              disabled={!startDate || !endDate}
+              className="text-primary font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Apply
+            </button>
           </div>
         </div>
       </div>
