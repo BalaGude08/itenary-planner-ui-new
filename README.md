@@ -1,40 +1,86 @@
-# Welcome to your Lovable project
+# EaseMyTrip Planner
+
+A modern AI-powered trip planning application built with React, TypeScript, and Tailwind CSS.
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/de15928a-b8e9-4942-b070-ea1636d6de6c
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- 🎯 **Landing Page** - Hero section with CTA
+- 📝 **5-Step Onboarding** - Dates, Budget, Themes, Constraints, Departure City
+- 💬 **AI Chat Assistant** - Interactive trip planning chat
+- 📅 **Itinerary Planner** - Split-pane interface with real-time updates
+- 🌤️ **Weather Forecasts** - Per-day weather information
+- 💰 **Cost Breakdown** - Detailed budget tracking
+- 🗺️ **Map Integration** - Visual trip planning (placeholder)
+- 🛒 **Checkout Flow** - Complete booking experience
+- 🔗 **Share & Download** - Share trips and export to PDF (placeholder)
+- 🌐 **Multi-language** - Support for EN, HI, TE
+
+## Quick Start
+
+### Installation
+
+```bash
+# Install dependencies
+npm install
+# or
+pnpm install
+
+# Copy environment variables
+cp .env.example .env
+
+# Start development server
+npm run dev
+# or
+pnpm dev
+```
+
+The app will be available at `http://localhost:8080`
+
+## Project Structure
+
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # shadcn/ui components
+│   ├── AppBar.tsx      # Top navigation
+│   ├── ChatDock.tsx    # Chat interface
+│   ├── TripProgress.tsx
+│   └── ...
+├── pages/              # Route pages
+│   ├── Landing.tsx
+│   ├── Onboarding.tsx
+│   ├── Planner.tsx
+│   ├── ItineraryDetail.tsx
+│   ├── Checkout.tsx
+│   └── Share.tsx
+├── store/              # Zustand state management
+│   └── itinerary.store.ts
+├── lib/                # Utilities
+│   ├── api.ts
+│   ├── featureFlags.ts
+│   └── canvasDelta.ts
+├── theme/              # Design tokens
+│   └── tokens.ts
+└── index.css           # Global styles & design system
+```
+
+## Environment Variables
+
+- `VITE_API_BASE` - API endpoint (default: http://localhost:3000/api)
+- `VITE_FLAG_USE_MOCKS` - Enable mock data (default: true)
+- `VITE_DEFAULT_LOCALE` - Default language (default: en)
+
+## How can I edit this code?
 
 **Use Lovable**
 
 Simply visit the [Lovable Project](https://lovable.dev/projects/de15928a-b8e9-4942-b070-ea1636d6de6c) and start prompting.
 
 Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
 
 **Edit a file directly in GitHub**
 
