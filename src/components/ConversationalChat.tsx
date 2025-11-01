@@ -3,6 +3,9 @@ import { useItineraryStore } from '@/store/itinerary.store';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { api } from '@/services/api';
+import { Suggestions } from './Suggestions';
+import { Suggestion } from '@/services/mockService';
 
 type ChatStep = 
   | 'initial'
@@ -54,7 +57,7 @@ export const ConversationalChat = ({ initialMessage, onComplete }: Conversationa
     }, 800);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
     
     addChatMessage('user', input);
@@ -69,7 +72,23 @@ export const ConversationalChat = ({ initialMessage, onComplete }: Conversationa
       simulateAIResponse('Great choice! When would you like to travel?', 'dates');
     } else if (currentStep === 'complete') {
       // Handle follow-up questions after itinerary is generated
-      simulateAIResponse('I can help you modify your itinerary! You can ask me to change activities, adjust timing, swap hotels, or add new experiences. What would you like to adjust?', 'complete');
+      addChatMessage('user', userInput);
+      setIsTyping(true);
+      
+      try {
+        const response = await api.sendFollowUp(userInput);
+        setIsTyping(false);
+        addChatMessage('assistant', response.message);
+        
+        // If there are suggestions, render them as clickable options
+        if (response.suggestions && response.suggestions.length > 0) {
+          // The suggestions will be rendered automatically by the renderInteractiveElement
+          // when currentStep is 'complete'
+        }
+      } catch (error) {
+        setIsTyping(false);
+        addChatMessage('assistant', 'I apologize, but I encountered an error. Could you please try rephrasing your question?');
+      }
     }
   };
 
@@ -222,6 +241,16 @@ export const ConversationalChat = ({ initialMessage, onComplete }: Conversationa
         return <AccommodationSelector onSelect={handleAccommodationSelect} />;
       case 'confirmation':
         return <ConfirmationButtons onConfirm={handleConfirmation} />;
+      case 'complete':
+        return api.currentResponse?.suggestions ? (
+          <Suggestions
+            suggestions={api.currentResponse.suggestions}
+            onSuggestionClick={(suggestion) => {
+              setInput(suggestion.text);
+              handleSend();
+            }}
+          />
+        ) : null;
       default:
         return null;
     }
