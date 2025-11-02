@@ -1,5 +1,6 @@
 import { useItineraryStore } from '@/store/itinerary.store';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 const translations = {
   en: { login: 'Login or Signup' },
@@ -9,6 +10,7 @@ const translations = {
 
 export const AppBar = () => {
   const { locale, setLocale } = useItineraryStore();
+  const navigate = useNavigate();
   const t = translations[locale];
 
   return (
@@ -31,7 +33,7 @@ export const AppBar = () => {
             <option value="te">TE</option>
           </select>
           
-          <Button variant="default" size="sm">
+          <Button variant="default" size="sm" onClick={() => navigate('/login')}>
             {t.login}
           </Button>
         </div>
