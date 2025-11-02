@@ -10,6 +10,7 @@ import ItineraryDetail from "./pages/ItineraryDetail";
 import Checkout from "./pages/Checkout";
 import Share from "./pages/Share";
 import NotFound from "./pages/NotFound";
+import LoginPage from "./pages/LoginPage";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/planner/:itineraryId" element={<Planner />} />
           <Route path="/itinerary/:itineraryId" element={<ItineraryDetail />} />

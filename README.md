@@ -108,7 +108,27 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/de15928a-b8e9-4942-b070-ea1636d6de6c) and click on Share -> Publish.
+### Vercel Deployment (Recommended)
+
+This project is already configured for Vercel with `vercel.json`. Deploy in 3 steps:
+
+1. **Go to [vercel.com](https://vercel.com)** and sign up/login with GitHub
+2. **Click "New Project"** → Import your GitHub repository
+3. **Click "Deploy"** - That's it! 🚀
+
+Your app will be live at: `your-app-name.vercel.app`
+
+**Via Vercel CLI:**
+```bash
+npm i -g vercel
+vercel
+```
+
+**Environment Variables** (set in Vercel dashboard → Settings → Environment Variables):
+- `VITE_API_BASE` - Your backend API URL
+- `VITE_FLAG_USE_MOCKS` - Set to `true` for mock data
+
+**Alternative:** Use [Lovable](https://lovable.dev/projects/de15928a-b8e9-4942-b070-ea1636d6de6c) and click Share → Publish.
 
 ## Can I connect a custom domain to my Lovable project?
 
